@@ -30,7 +30,7 @@ class SingleNodeNeuralNetwork:
 		X = X.reshape(X.shape[0], -1).T # (n_x, m) Vector
 		self.init(X, Y)
 		for i in range(iterations):
-			print("iter:", i)
+			print("epoch:", i)
 			A = self.forward_propagation(X)		
 			C = -np.sum(np.multiply(Y, np.log(A))+np.multiply(1-Y, np.log(1-A)))/self.m
 			print("cost:", C)
@@ -51,13 +51,13 @@ class SingleNodeNeuralNetwork:
 
 net = SingleNodeNeuralNetwork()
 
-f = h5py.File(os.getcwd()+'/train.h5', 'r')
+f = h5py.File(os.getcwd()+'/data/train.h5', 'r')
 
 X = np.array(f['train_set_x'])/255
 Y = np.array(f['train_set_y']).reshape((1, X.shape[0]))
-net.train(np.array(X), np.array(Y), 5000, 0.005)
+net.train(np.array(X), np.array(Y), 1000, 0.01)
 
-f = h5py.File(os.getcwd()+'/test.h5', 'r')
+f = h5py.File(os.getcwd()+'/data/test.h5', 'r')
 
 X = np.array(f['test_set_x'])/255
 Y = np.array(f['test_set_y']).reshape((1, X.shape[0]))
