@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 import os
 import h5py
 
@@ -44,9 +45,9 @@ class MultiLayerNeuralNetwork:
 		dZ[Z <=0 ] = 0
 		return dZ
 
-	def backward_propagation(self, dA, learning_rate):
+	def backward_propagation(self, dA, lambd, learning_rate):
 		dZ = self.sigmoid_backward(dA, self.cache["Z"+str(self.L-1)])
-		dW = np.dot(dZ, self.cache["A"+str(self.L-2)].T)/self.m # (d_i, d_i-1) Vector
+		dW = np.dot(dZ, self.cache["A"+str(self.L-2)].T)/self.m+lambd*self.weights[self.L-1]/self.m # (d_i, d_i-1) Vector
 		dB = np.sum(dZ, axis=1, keepdims=True)/self.m # (d_i, 1) Vector 
 		dA = np.dot(self.weights[self.L-1].T, dZ) # (d_i-1, m) Vector
 		self.weights[self.L-1] = self.weights[self.L-1]-learning_rate*dW
@@ -69,7 +70,13 @@ class MultiLayerNeuralNetwork:
 				correct += 1
 		return correct/self.m	
 
-	def train(self, X, Y, dimensions, iterations, learning_rate):
+	def regularization(self, lambd):
+		tot = 0
+		for i in range(1, self.L):
+			tot += np.sum(self.weights[i]*self.weights[i])
+		return tot*lambd/(2*self.m)
+
+	def train(self, X, Y, dimensions, iterations, learning_rate, lambd):
 		np.random.seed()
 		self.m = X.shape[0]
 		print(self.m)
@@ -77,13 +84,14 @@ class MultiLayerNeuralNetwork:
 		self.L = len(dimensions)
 		self.init(X, Y, dimensions)
 		for i in range(iterations):
-			print("epoch:", i)
 			A = self.forward_propagation(X) # (d_l, m) Vector
-			C = -np.sum(np.multiply(Y, np.log(A))+np.multiply(1-Y, np.log(1-A)))/self.m
-			print("cost:", C)
-			print("accuracy:", self.accuracy(A, Y))
-			self.backward_propagation(-(np.divide(Y, A)-np.divide(1-Y, 1-A)), learning_rate)	
-			print('-'*10)
+			C = -np.sum(np.multiply(Y, np.log(A))+np.multiply(1-Y, np.log(1-A)))/self.m+self.regularization(lambd)
+			self.backward_propagation(-(np.divide(Y, A)-np.divide(1-Y, 1-A)), lambd, learning_rate)	
+			if ((i+1)%100==0):
+				print("epoch:", i)
+				print("cost:", C)
+				print("accuracy:", self.accuracy(A, Y))
+				print('-'*10)
 		
 	def predict(self, X):
 		Y = np.zeros((1, X.shape[0]))
@@ -92,7 +100,7 @@ class MultiLayerNeuralNetwork:
 		A = self.forward_propagation(X)
 		for i in range(self.m):
 			Y[0][i] = round(A[0][i])
-		return Y
+		return Y, A
 	
 
 net = MultiLayerNeuralNetwork()
@@ -102,17 +110,17 @@ f = h5py.File(os.getcwd()+'/data/train.h5', 'r')
 X = np.array(f['train_set_x'])/255
 Y = np.array(f['train_set_y']).reshape((1, X.shape[0]))
 
-net.train(X, Y, [int(np.prod(X.shape)/X.shape[0]), 16, 1], 1000, 0.005)
+net.train(X, Y, [int(np.prod(X.shape)/X.shape[0]), 50, 1], 1500, 0.01, 1)
 
 f = h5py.File(os.getcwd()+'/data/test.h5', 'r')
 
 X = np.array(f['test_set_x'])/255
 Y = np.array(f['test_set_y']).reshape((1, X.shape[0]))
-y = net.predict(X)
+y, a = net.predict(X)
 
 correct = 0
 for i in range(X.shape[0]):
-    if y[0][i] == Y[0][i]:
-        correct += 1
+	if y[0][i] == Y[0][i]:
+		correct += 1
 
 print("test result:", correct/X.shape[0])
